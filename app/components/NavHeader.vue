@@ -7,7 +7,7 @@ const showSignIn = ref(false)
     <div class="nav-inner">
       <NuxtLink to="/" class="nav-brand">
         <span class="nav-brand-icon" aria-hidden="true">&#x1F99E;</span>
-        <span class="nav-brand-text">OpenClaw<span class="nav-brand-accent">Next</span></span>
+        <span class="nav-brand-text">Claw<span class="nav-brand-accent">less</span></span>
       </NuxtLink>
 
       <nav class="nav-links">

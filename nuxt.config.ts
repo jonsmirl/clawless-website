@@ -11,9 +11,9 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      title: 'OpenClaw Next',
+      title: 'Clawless',
       meta: [
-        { name: 'description', content: 'Next-generation OpenClaw. No install. No API keys. Just a URL.' },
+        { name: 'description', content: 'Clawless — OpenClaw without the server. No install. No API keys. Just a URL.' },
       ],
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },

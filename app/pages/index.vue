@@ -71,7 +71,7 @@ async function mockGenerate(query: string): Promise<Entry> {
     <div v-if="entries.length === 0 && !loading" class="hero">
       <div class="hero-glow" />
       <h1 class="hero-title">
-        OpenClaw<span class="hero-accent">Next</span>
+        Claw<span class="hero-accent">less</span>
       </h1>
       <p class="hero-sub">
         No install. No API keys. Just ask.
