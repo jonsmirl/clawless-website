@@ -16,6 +16,7 @@ export default defineNuxtConfig({
         { name: 'description', content: 'Clawless — OpenClaw without the server. No install. No API keys. Just a URL.' },
       ],
       link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {

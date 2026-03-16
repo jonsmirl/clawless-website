@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Clawless: abstract lobster claw, open/free — "claw-less" -->
+  <!-- Two curved pincer shapes that don't quite close, forming a negative space -->
+  <path d="M8 24 C8 24, 6 18, 8 12 C10 6, 14 4, 16 4" stroke="#00dc82" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M24 24 C24 24, 26 18, 24 12 C22 6, 18 4, 16 4" stroke="#00dc82" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <!-- Small gap at top — the "less" in clawless -->
+  <circle cx="16" cy="4" r="1.5" fill="#0a0e1a"/>
+  <!-- Body hint -->
+  <path d="M12 24 L12 28" stroke="#00dc82" stroke-width="2" stroke-linecap="round"/>
+  <path d="M16 24 L16 29" stroke="#00dc82" stroke-width="2" stroke-linecap="round"/>
+  <path d="M20 24 L20 28" stroke="#00dc82" stroke-width="2" stroke-linecap="round"/>
+</svg>
