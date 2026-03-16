@@ -1,18 +1,23 @@
 /**
  * Semantic search using e5-small-v2 via Transformers.js.
- * Loads the embedding model in-browser, fetches the index from the server,
- * and finds the best matching cached entry by cosine similarity.
+ * Loads embedding model in-browser, fetches binary index from server,
+ * and finds best matching cached entry by cosine similarity over Float32Arrays.
  */
 
-interface IndexEntry {
+interface IndexMeta {
   id: string
   query: string
-  embedding: number[]
   follow_ups: string[]
 }
 
+interface IndexHeader {
+  entries: IndexMeta[]
+  dims: number
+  count: number
+}
+
 interface SearchResult {
-  entry: IndexEntry
+  entry: IndexMeta
   score: number
 }
 
@@ -24,10 +29,13 @@ export function useSearch() {
 
   const modelReady = ref(false)
   const modelLoading = ref(false)
-  const index = ref<IndexEntry[]>([])
   const indexLoaded = ref(false)
+  const indexSize = ref(0)
 
   let pipeline: any = null
+  let indexHeader: IndexHeader | null = null
+  let indexVectors: Float32Array | null = null
+  let indexDims = 0
 
   async function loadModel() {
     if (pipeline || modelLoading.value) return
@@ -53,22 +61,41 @@ export function useSearch() {
   }
 
   async function loadIndex() {
-    if (indexLoaded.value) return
-
     try {
+      console.log('Fetching binary index...')
       const resp = await fetch(`${apiUrl}/index`)
-      if (resp.ok) {
-        index.value = await resp.json()
-        indexLoaded.value = true
-        console.log(`Search index loaded: ${index.value.length} entries`)
+      if (!resp.ok) {
+        console.error('Index fetch failed:', resp.status)
+        return
       }
+
+      const buffer = await resp.arrayBuffer()
+      const view = new DataView(buffer)
+
+      // Read header length (uint32 LE at offset 0)
+      const headerLen = view.getUint32(0, true)
+
+      // Read header JSON
+      const headerBytes = new Uint8Array(buffer, 4, headerLen)
+      const headerJson = new TextDecoder().decode(headerBytes)
+      indexHeader = JSON.parse(headerJson) as IndexHeader
+
+      // Read vectors (float32 LE, contiguous, after header)
+      const vectorOffset = 4 + headerLen
+      const vectorBytes = buffer.byteLength - vectorOffset
+      indexVectors = new Float32Array(buffer, vectorOffset, vectorBytes / 4)
+      indexDims = indexHeader.dims
+
+      indexLoaded.value = true
+      indexSize.value = indexHeader.count
+      console.log(`Binary index loaded: ${indexHeader.count} entries, ${indexDims} dims, ${(buffer.byteLength / 1024).toFixed(1)} KB`)
     }
     catch (err) {
       console.error('Failed to load search index:', err)
     }
   }
 
-  async function embedQuery(query: string): Promise<number[] | null> {
+  async function embedQuery(query: string): Promise<Float32Array | null> {
     if (!pipeline) return null
 
     try {
@@ -77,8 +104,7 @@ export function useSearch() {
         pooling: 'mean',
         normalize: true,
       })
-      // output.data is a Float32Array
-      return Array.from(output.data as Float32Array)
+      return output.data as Float32Array
     }
     catch (err) {
       console.error('Embedding error:', err)
@@ -86,46 +112,50 @@ export function useSearch() {
     }
   }
 
-  function cosineSimilarity(a: number[], b: number[]): number {
-    if (a.length !== b.length) return 0
+  function cosineSimilarityF32(a: Float32Array, b: Float32Array, bOffset: number, dims: number): number {
     let dot = 0
     let normA = 0
     let normB = 0
-    for (let i = 0; i < a.length; i++) {
-      dot += a[i] * b[i]
-      normA += a[i] * a[i]
-      normB += b[i] * b[i]
+    for (let i = 0; i < dims; i++) {
+      const ai = a[i]
+      const bi = b[bOffset + i]
+      dot += ai * bi
+      normA += ai * ai
+      normB += bi * bi
     }
     return dot / (Math.sqrt(normA) * Math.sqrt(normB))
   }
 
   async function search(query: string): Promise<SearchResult | null> {
-    if (!modelReady.value || index.value.length === 0) return null
+    if (!modelReady.value || !indexHeader || !indexVectors) return null
 
-    const queryEmbedding = await embedQuery(query)
-    if (!queryEmbedding) return null
+    const queryVec = await embedQuery(query)
+    if (!queryVec) return null
 
-    let bestMatch: IndexEntry | null = null
+    let bestIdx = -1
     let bestScore = -1
 
-    for (const entry of index.value) {
-      const score = cosineSimilarity(queryEmbedding, entry.embedding)
+    for (let i = 0; i < indexHeader.count; i++) {
+      const score = cosineSimilarityF32(queryVec, indexVectors, i * indexDims, indexDims)
       if (score > bestScore) {
         bestScore = score
-        bestMatch = entry
+        bestIdx = i
       }
     }
 
-    if (bestMatch && bestScore >= SIMILARITY_THRESHOLD) {
-      return { entry: bestMatch, score: bestScore }
+    if (bestIdx >= 0 && bestScore >= SIMILARITY_THRESHOLD) {
+      return {
+        entry: indexHeader.entries[bestIdx],
+        score: bestScore,
+      }
     }
 
+    console.log(`Best match: "${indexHeader.entries[bestIdx]?.query}" (${bestScore.toFixed(3)}) — below threshold`)
     return null
   }
 
   // Start loading model and index on client-side only
   if (import.meta.client) {
-    // Use onMounted to ensure we're in the browser
     onMounted(() => {
       console.log('useSearch: initializing on client')
       loadModel()
@@ -137,7 +167,7 @@ export function useSearch() {
     modelReady,
     modelLoading,
     indexLoaded,
-    indexSize: computed(() => index.value.length),
+    indexSize: computed(() => indexSize.value),
     search,
     loadIndex,
   }
