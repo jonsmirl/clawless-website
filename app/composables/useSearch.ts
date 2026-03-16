@@ -34,7 +34,9 @@ export function useSearch() {
     modelLoading.value = true
 
     try {
+      console.log('Loading embedding model (e5-small-v2)...')
       const { pipeline: createPipeline } = await import('@huggingface/transformers')
+      console.log('Transformers.js imported, creating pipeline...')
       pipeline = await createPipeline('feature-extraction', 'intfloat/e5-small-v2', {
         dtype: 'q8',
         device: 'wasm',
@@ -121,10 +123,14 @@ export function useSearch() {
     return null
   }
 
-  // Start loading model and index on client-side
+  // Start loading model and index on client-side only
   if (import.meta.client) {
-    loadModel()
-    loadIndex()
+    // Use onMounted to ensure we're in the browser
+    onMounted(() => {
+      console.log('useSearch: initializing on client')
+      loadModel()
+      loadIndex()
+    })
   }
 
   return {
