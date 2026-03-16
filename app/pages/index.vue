@@ -12,17 +12,43 @@ interface Entry {
 const entries = ref<Entry[]>([])
 const loading = ref(false)
 const resultsContainer = ref<HTMLElement | null>(null)
+const lastSource = ref<'cache' | 'miss' | ''>('')
 
 const config = useRuntimeConfig()
 const API_URL = config.public.apiUrl || 'http://localhost:8787'
+const { modelReady, modelLoading, indexSize, search, loadIndex } = useSearch()
 
 async function handleQuery(query: string) {
   loading.value = true
+  lastSource.value = ''
 
   try {
-    // TODO: Phase 1 — walk semantic index for cached hit
-    // Call server /miss for generation
-    const entry = await callMiss(query)
+    // Try semantic index first
+    const match = await search(query)
+    let entry: Entry
+
+    if (match) {
+      console.log(`Semantic match: "${match.entry.query}" (score: ${match.score.toFixed(3)})`)
+      // Fetch the full entry from server cache
+      const resp = await fetch(`${API_URL}/entry/${match.entry.id}`)
+      if (resp.ok) {
+        entry = await resp.json()
+        entry.query = query // show the user's query, not the cached one
+        lastSource.value = 'cache'
+      }
+      else {
+        entry = await callMiss(query)
+        lastSource.value = 'miss'
+      }
+    }
+    else {
+      // No semantic match — generate via Claude
+      entry = await callMiss(query)
+      lastSource.value = 'miss'
+      // Refresh index after new entry is generated (embedding is async on server)
+      setTimeout(() => loadIndex(), 3000)
+    }
+
     entries.value.push(entry)
 
     // Scroll to the new result
@@ -74,6 +100,12 @@ async function callMiss(query: string): Promise<Entry> {
       </h1>
       <p class="hero-sub">
         No install. No API keys. Just ask.
+      </p>
+      <p class="hero-status">
+        <span v-if="modelLoading" class="status-dot status-dot--loading" /> Loading search model...
+        <span v-else-if="modelReady && indexSize > 0" class="status-dot status-dot--ready" /> {{ indexSize }} entries indexed
+        <span v-else-if="modelReady" class="status-dot status-dot--ready" /> Search ready
+        <span v-else class="status-dot status-dot--off" /> Search unavailable — queries go to Claude
       </p>
     </div>
 
@@ -154,6 +186,38 @@ async function callMiss(query: string): Promise<Entry> {
   margin-top: var(--sp-3);
   position: relative;
   z-index: 1;
+}
+
+.hero-status {
+  font-size: var(--fs-xs);
+  color: var(--c-shelf);
+  margin-top: var(--sp-4);
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot--ready {
+  background: var(--c-glow);
+  box-shadow: 0 0 6px var(--c-glow);
+}
+
+.status-dot--loading {
+  background: var(--c-warning);
+  animation: breathe 1.5s ease-in-out infinite;
+}
+
+.status-dot--off {
+  background: var(--c-drift);
 }
 
 /* ─── Results ─── */
