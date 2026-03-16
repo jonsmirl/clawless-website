@@ -26,6 +26,12 @@ export default defineNuxtConfig({
     },
   },
 
+  runtimeConfig: {
+    public: {
+      apiUrl: process.env.CLAWLESS_API_URL || 'https://jon.lowpan.com',
+    },
+  },
+
   supabase: {
     url: process.env.SUPABASE_URL,
     key: process.env.SUPABASE_KEY,
@@ -34,5 +40,14 @@ export default defineNuxtConfig({
 
   nitro: {
     preset: 'cloudflare_pages',
+  },
+
+  vite: {
+    optimizeDeps: {
+      include: [
+        '@vue/devtools-core',
+        '@vue/devtools-kit',
+      ],
+    },
   },
 })

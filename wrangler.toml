@@ -6,3 +6,4 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 SUPABASE_URL = "https://opyrxllnwbagumjgvpad.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9weXJ4bGxud2JhZ3Vtamd2cGFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NzQ5ODYsImV4cCI6MjA4ODU1MDk4Nn0.7poCWIAjBOnmxc4br8E8xkejBTeThHtmWvqydoDUHFY"
+NUXT_PUBLIC_API_URL = "https://jon.lowpan.com"

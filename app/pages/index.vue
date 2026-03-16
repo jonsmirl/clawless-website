@@ -13,14 +13,16 @@ const entries = ref<Entry[]>([])
 const loading = ref(false)
 const resultsContainer = ref<HTMLElement | null>(null)
 
+const config = useRuntimeConfig()
+const API_URL = config.public.apiUrl || 'http://localhost:8787'
+
 async function handleQuery(query: string) {
   loading.value = true
 
   try {
     // TODO: Phase 1 — walk semantic index for cached hit
-    // TODO: Phase 2 — call Oracle /miss for generation
-    // For now, simulate with a mock response
-    const entry = await mockGenerate(query)
+    // Call server /miss for generation
+    const entry = await callMiss(query)
     entries.value.push(entry)
 
     // Scroll to the new result
@@ -48,20 +50,17 @@ function handleFollowUp(query: string) {
   handleQuery(query)
 }
 
-// Mock generator — replaced by real Oracle /miss + index walker later
-async function mockGenerate(query: string): Promise<Entry> {
-  await new Promise(r => setTimeout(r, 1200))
-  return {
-    id: crypto.randomUUID(),
-    query,
-    markdown: `## ${query}\n\nThis is a placeholder response. In production, this would be:\n\n1. **Cache hit** from the semantic index (~50ms)\n2. **Worker result** with live data (weather, prices)\n3. **Claude-generated entry** via Oracle \`/miss\` (~3-5s)\n\nThe response would include rich markdown with tables, code blocks, and links.\n\n\`\`\`python\n# Example: entry JSON from cache\n{\n  "markdown": "...",\n  "script": "fetch('https://api.example.com')...",\n  "nano_prompt": null,\n  "follow_ups": ["related query 1", "related query 2"]\n}\n\`\`\``,
-    follow_ups: [
-      `${query} examples`,
-      `${query} best practices`,
-      `alternatives to ${query}`,
-    ],
-    timestamp: new Date().toISOString(),
+async function callMiss(query: string): Promise<Entry> {
+  const res = await fetch(`${API_URL}/miss`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Server error ${res.status}: ${err}`)
   }
+  return await res.json()
 }
 </script>
 
