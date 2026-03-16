@@ -101,11 +101,17 @@ async function callMiss(query: string): Promise<Entry> {
       <p class="hero-sub">
         No install. No API keys. Just ask.
       </p>
-      <p class="hero-status">
-        <span v-if="modelLoading" class="status-dot status-dot--loading" /> Loading search model...
-        <span v-else-if="modelReady && indexSize > 0" class="status-dot status-dot--ready" /> {{ indexSize }} entries indexed
-        <span v-else-if="modelReady" class="status-dot status-dot--ready" /> Search ready
-        <span v-else class="status-dot status-dot--off" /> Search unavailable — queries go to Claude
+      <p v-if="modelLoading" class="hero-status">
+        <span class="status-dot status-dot--loading" /> Loading search model...
+      </p>
+      <p v-else-if="modelReady && indexSize > 0" class="hero-status">
+        <span class="status-dot status-dot--ready" /> {{ indexSize }} entries indexed
+      </p>
+      <p v-else-if="modelReady" class="hero-status">
+        <span class="status-dot status-dot--ready" /> Search ready
+      </p>
+      <p v-else class="hero-status">
+        <span class="status-dot status-dot--off" /> Search unavailable
       </p>
     </div>
 
