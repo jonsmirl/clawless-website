@@ -37,7 +37,7 @@ export default {
     try {
       // Embed the query via Workers AI
       const embeddingResponse = await env.AI.run(
-        "@cf/baai/bge-small-en-v1.5",
+        "@cf/baai/bge-base-en-v1.5",
         { text: [query.trim()] }
       );
 
