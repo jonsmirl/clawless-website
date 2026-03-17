@@ -30,6 +30,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiUrl: process.env.CLAWLESS_API_URL || 'https://jon.lowpan.com',
+      cdnUrl: process.env.CLAWLESS_CDN_URL || 'https://s3.lowpan.com',
     },
   },
 

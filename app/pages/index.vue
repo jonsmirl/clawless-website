@@ -17,6 +17,7 @@ const resultView = ref<HTMLElement | null>(null)
 
 const config = useRuntimeConfig()
 const API_URL = config.public.apiUrl || 'http://localhost:8787'
+const CDN_URL = config.public.cdnUrl || 'https://s3.lowpan.com'
 const { modelReady, modelLoading, indexSize, search, loadIndex } = useSearch()
 
 const currentEntry = computed(() => {
@@ -36,7 +37,7 @@ async function handleQuery(query: string) {
 
     if (match) {
       console.log(`Semantic match: "${match.entry.query}" (score: ${match.score.toFixed(3)})`)
-      const resp = await fetch(`${API_URL}/entry/${match.entry.id}`)
+      const resp = await fetch(`${CDN_URL}/cache/${match.entry.id}.json`)
       if (resp.ok) {
         entry = await resp.json()
         entry.query = query

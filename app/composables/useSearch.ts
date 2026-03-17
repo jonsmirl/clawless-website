@@ -26,6 +26,7 @@ const SIMILARITY_THRESHOLD = 0.85
 export function useSearch() {
   const config = useRuntimeConfig()
   const apiUrl = config.public.apiUrl || 'http://localhost:8787'
+  const cdnUrl = config.public.cdnUrl || 'https://s3.lowpan.com'
 
   const modelReady = ref(false)
   const modelLoading = ref(false)
@@ -74,8 +75,8 @@ export function useSearch() {
         currentHash = health.index_hash || ''
       }
 
-      console.log('Fetching binary index...')
-      const resp = await fetch(`${apiUrl}/index`)
+      console.log('Fetching binary index from CDN...')
+      const resp = await fetch(`${cdnUrl}/index.bin`)
       if (!resp.ok) {
         console.error('Index fetch failed:', resp.status)
         return
