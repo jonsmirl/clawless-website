@@ -31,6 +31,7 @@ export default defineNuxtConfig({
     public: {
       apiUrl: process.env.CLAWLESS_API_URL || 'https://jon.lowpan.com',
       cdnUrl: process.env.CLAWLESS_CDN_URL || 'https://s3.lowpan.com',
+      searchUrl: process.env.CLAWLESS_SEARCH_URL || 'https://clawless-search.lowpan.workers.dev',
     },
   },
 

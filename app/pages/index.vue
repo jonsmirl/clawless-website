@@ -35,9 +35,9 @@ async function handleQuery(query: string) {
     const match = await search(query)
     let entry: Entry
 
-    if (match) {
-      console.log(`Semantic match: "${match.entry.query}" (score: ${match.score.toFixed(3)})`)
-      const resp = await fetch(`${CDN_URL}/cache/${match.entry.id}.json`)
+    if (match && match.url) {
+      // Cache hit — fetch from R2 CDN
+      const resp = await fetch(match.url)
       if (resp.ok) {
         entry = await resp.json()
         entry.query = query
@@ -49,9 +49,9 @@ async function handleQuery(query: string) {
       }
     }
     else {
+      // Cache miss — generate via Claude
       entry = await callMiss(query)
       lastSource.value = 'miss'
-      setTimeout(() => loadIndex(), 3000)
     }
 
     // Trim any forward history if we navigated back then searched

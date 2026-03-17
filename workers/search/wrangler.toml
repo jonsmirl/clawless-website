@@ -1,0 +1,11 @@
+name = "clawless-search"
+main = "index.js"
+compatibility_date = "2025-07-07"
+compatibility_flags = ["nodejs_compat"]
+
+[ai]
+binding = "AI"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "clawless-index"
