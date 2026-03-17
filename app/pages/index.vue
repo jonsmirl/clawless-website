@@ -13,6 +13,7 @@ const history = ref<Entry[]>([])
 const currentIndex = ref(-1) // -1 = hero/empty state
 const loading = ref(false)
 const lastSource = ref<'cache' | 'miss' | ''>('')
+const resultView = ref<HTMLElement | null>(null)
 
 const config = useRuntimeConfig()
 const API_URL = config.public.apiUrl || 'http://localhost:8787'
@@ -62,6 +63,10 @@ async function handleQuery(query: string) {
 
     // Push browser history state
     window.history.pushState({ idx: currentIndex.value }, '', `#q=${encodeURIComponent(query)}`)
+
+    // Scroll result area to top
+    await nextTick()
+    resultView.value?.scrollTo(0, 0)
   }
   catch (err) {
     console.error('Query failed:', err)
@@ -106,6 +111,7 @@ if (import.meta.client) {
       else {
         currentIndex.value = -1
       }
+      nextTick(() => resultView.value?.scrollTo(0, 0))
     })
   })
 }
@@ -137,7 +143,7 @@ if (import.meta.client) {
     </div>
 
     <!-- Single result view -->
-    <div v-else-if="currentEntry" class="result-view">
+    <div v-else-if="currentEntry" ref="resultView" class="result-view">
       <EntryResult
         :key="currentEntry.id"
         :entry="currentEntry"
