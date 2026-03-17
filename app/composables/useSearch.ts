@@ -46,11 +46,12 @@ export function useSearch() {
       console.log('Loading embedding model (e5-small-v2)...')
       const { pipeline: createPipeline } = await import('@huggingface/transformers')
       console.log('Transformers.js imported, creating pipeline...')
-      pipeline = await createPipeline('feature-extraction', 'intfloat/e5-small-v2', {
+      pipeline = await createPipeline('feature-extraction', 'Xenova/e5-small-v2', {
+        dtype: 'fp32',
         device: 'wasm',
       })
       modelReady.value = true
-      console.log('Embedding model loaded (e5-small-v2, wasm)')
+      console.log('Embedding model loaded (Xenova/e5-small-v2, fp32, wasm)')
     }
     catch (err) {
       console.error('Failed to load embedding model:', err)
