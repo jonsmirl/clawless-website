@@ -63,7 +63,7 @@ async function handleQuery(query: string) {
     currentIndex.value = history.value.length - 1
 
     // Push browser history state
-    window.history.pushState({ idx: currentIndex.value }, '', `#q=${encodeURIComponent(query)}`)
+    window.history.pushState({ idx: currentIndex.value }, '', `/?q=${encodeURIComponent(query)}`)
 
     // Scroll result area to top
     await nextTick()
@@ -78,7 +78,7 @@ async function handleQuery(query: string) {
       follow_ups: [],
     })
     currentIndex.value = history.value.length - 1
-    window.history.pushState({ idx: currentIndex.value }, '', `#q=${encodeURIComponent(query)}`)
+    window.history.pushState({ idx: currentIndex.value }, '', `/?q=${encodeURIComponent(query)}`)
   }
   finally {
     loading.value = false
