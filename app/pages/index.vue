@@ -35,8 +35,8 @@ async function handleQuery(query: string) {
     const match = await search(query)
     let entry: Entry
 
-    if (match && match.url) {
-      // Cache hit — fetch from R2 CDN
+    if (match && match.has_article && match.url) {
+      // Index hit WITH article — fetch from R2 CDN (instant)
       const resp = await fetch(match.url)
       if (resp.ok) {
         entry = await resp.json()
@@ -44,12 +44,19 @@ async function handleQuery(query: string) {
         lastSource.value = 'cache'
       }
       else {
+        // Article fetch failed — generate fresh
         entry = await callMiss(query)
         lastSource.value = 'miss'
       }
     }
+    else if (match && !match.has_article) {
+      // Index hit WITHOUT article — query is known but no page yet
+      // Generate on demand, will be cached for next time
+      entry = await callMiss(query)
+      lastSource.value = 'miss'
+    }
     else {
-      // Cache miss — generate via Claude
+      // Not in index at all — generate AND it gets added to index
       entry = await callMiss(query)
       lastSource.value = 'miss'
     }

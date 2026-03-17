@@ -7,7 +7,7 @@
  * Returns: { match: true, id, query, score, url } or { match: false }
  */
 
-const SIMILARITY_THRESHOLD = 0.78;
+const SIMILARITY_THRESHOLD = 0.82;
 const CDN_BASE = "https://s3.lowpan.com";
 
 const CORS_HEADERS = {
@@ -60,13 +60,15 @@ export default {
         const best = results.matches[0];
 
         if (best.score >= SIMILARITY_THRESHOLD) {
+          const hasArticle = best.metadata?.has_article === true;
           return Response.json(
             {
               match: true,
+              has_article: hasArticle,
               id: best.id,
               query: best.metadata?.query || "",
               score: best.score,
-              url: `${CDN_BASE}/cache/${best.id}.json`,
+              url: hasArticle ? `${CDN_BASE}/cache/${best.id}.json` : null,
             },
             { headers: CORS_HEADERS }
           );
