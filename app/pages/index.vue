@@ -9,31 +9,36 @@ interface Entry {
   timestamp?: string
 }
 
-const entries = ref<Entry[]>([])
+const history = ref<Entry[]>([])
+const currentIndex = ref(-1) // -1 = hero/empty state
 const loading = ref(false)
-const resultsContainer = ref<HTMLElement | null>(null)
 const lastSource = ref<'cache' | 'miss' | ''>('')
 
 const config = useRuntimeConfig()
 const API_URL = config.public.apiUrl || 'http://localhost:8787'
 const { modelReady, modelLoading, indexSize, search, loadIndex } = useSearch()
 
+const currentEntry = computed(() => {
+  if (currentIndex.value < 0 || currentIndex.value >= history.value.length) return null
+  return history.value[currentIndex.value]
+})
+
+const showHero = computed(() => currentIndex.value < 0 && !loading.value)
+
 async function handleQuery(query: string) {
   loading.value = true
   lastSource.value = ''
 
   try {
-    // Try semantic index first
     const match = await search(query)
     let entry: Entry
 
     if (match) {
       console.log(`Semantic match: "${match.entry.query}" (score: ${match.score.toFixed(3)})`)
-      // Fetch the full entry from server cache
       const resp = await fetch(`${API_URL}/entry/${match.entry.id}`)
       if (resp.ok) {
         entry = await resp.json()
-        entry.query = query // show the user's query, not the cached one
+        entry.query = query
         lastSource.value = 'cache'
       }
       else {
@@ -42,30 +47,32 @@ async function handleQuery(query: string) {
       }
     }
     else {
-      // No semantic match — generate via Claude
       entry = await callMiss(query)
       lastSource.value = 'miss'
-      // Refresh index after new entry is generated (embedding is async on server)
       setTimeout(() => loadIndex(), 3000)
     }
 
-    entries.value.push(entry)
+    // Trim any forward history if we navigated back then searched
+    if (currentIndex.value < history.value.length - 1) {
+      history.value = history.value.slice(0, currentIndex.value + 1)
+    }
 
-    // Scroll to the new result
-    await nextTick()
-    resultsContainer.value?.lastElementChild?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    })
+    history.value.push(entry)
+    currentIndex.value = history.value.length - 1
+
+    // Push browser history state
+    window.history.pushState({ idx: currentIndex.value }, '', `#q=${encodeURIComponent(query)}`)
   }
   catch (err) {
     console.error('Query failed:', err)
-    entries.value.push({
+    history.value.push({
       id: crypto.randomUUID(),
       query,
       markdown: '**Error**: Could not generate a response. Please try again.',
       follow_ups: [],
     })
+    currentIndex.value = history.value.length - 1
+    window.history.pushState({ idx: currentIndex.value }, '', `#q=${encodeURIComponent(query)}`)
   }
   finally {
     loading.value = false
@@ -88,12 +95,26 @@ async function callMiss(query: string): Promise<Entry> {
   }
   return await res.json()
 }
+
+// Handle browser back/forward
+if (import.meta.client) {
+  onMounted(() => {
+    window.addEventListener('popstate', (e) => {
+      if (e.state && typeof e.state.idx === 'number') {
+        currentIndex.value = e.state.idx
+      }
+      else {
+        currentIndex.value = -1
+      }
+    })
+  })
+}
 </script>
 
 <template>
   <div class="page">
     <!-- Empty state: centered branding -->
-    <div v-if="entries.length === 0 && !loading" class="hero">
+    <div v-if="showHero" class="hero">
       <div class="hero-glow" />
       <h1 class="hero-title">
         Claw<span class="hero-accent">less</span>
@@ -115,17 +136,18 @@ async function callMiss(query: string): Promise<Entry> {
       </p>
     </div>
 
-    <!-- Results -->
-    <div ref="resultsContainer" class="results">
+    <!-- Single result view -->
+    <div v-else-if="currentEntry" class="result-view">
       <EntryResult
-        v-for="entry in entries"
-        :key="entry.id"
-        :entry="entry"
+        :key="currentEntry.id"
+        :entry="currentEntry"
         @follow-up="handleFollowUp"
       />
+    </div>
 
-      <!-- Loading skeleton -->
-      <div v-if="loading" class="skeleton">
+    <!-- Loading skeleton -->
+    <div v-else-if="loading" class="result-view">
+      <div class="skeleton">
         <div class="skeleton-bar skeleton-bar--short" />
         <div class="skeleton-bar" />
         <div class="skeleton-bar" />
@@ -144,8 +166,9 @@ async function callMiss(query: string): Promise<Entry> {
 .page {
   display: flex;
   flex-direction: column;
-  min-height: calc(100dvh - var(--header-h));
+  height: calc(100dvh - var(--header-h));
   padding: 0 var(--sp-5);
+  overflow: hidden;
 }
 
 /* ─── Hero (empty state) ─── */
@@ -157,7 +180,6 @@ async function callMiss(query: string): Promise<Entry> {
   justify-content: center;
   text-align: center;
   position: relative;
-  padding-bottom: var(--sp-20);
 }
 
 .hero-glow {
@@ -226,13 +248,14 @@ async function callMiss(query: string): Promise<Entry> {
   background: var(--c-drift);
 }
 
-/* ─── Results ─── */
-.results {
+/* ─── Result view (single entry, scrollable) ─── */
+.result-view {
   flex: 1;
   max-width: var(--max-content);
   width: 100%;
   margin: 0 auto;
-  padding: var(--sp-8) 0;
+  padding: var(--sp-6) 0;
+  overflow-y: auto;
 }
 
 /* ─── Loading skeleton ─── */
@@ -267,8 +290,7 @@ async function callMiss(query: string): Promise<Entry> {
 
 /* ─── Prompt area ─── */
 .prompt-area {
-  position: sticky;
-  bottom: 0;
+  flex-shrink: 0;
   padding: var(--sp-4) 0 var(--sp-6);
   background: linear-gradient(to top, var(--c-void) 60%, transparent);
 }
