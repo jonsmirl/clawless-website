@@ -47,11 +47,10 @@ export function useSearch() {
       const { pipeline: createPipeline } = await import('@huggingface/transformers')
       console.log('Transformers.js imported, creating pipeline...')
       pipeline = await createPipeline('feature-extraction', 'intfloat/e5-small-v2', {
-        dtype: 'q8',
         device: 'wasm',
       })
       modelReady.value = true
-      console.log('Embedding model loaded (e5-small-v2, q8, wasm)')
+      console.log('Embedding model loaded (e5-small-v2, wasm)')
     }
     catch (err) {
       console.error('Failed to load embedding model:', err)
@@ -92,8 +91,9 @@ export function useSearch() {
       const headerJson = new TextDecoder().decode(headerBytes)
       indexHeader = JSON.parse(headerJson) as IndexHeader
 
-      // Read vectors (float32 LE, contiguous, after header)
-      const vectorOffset = 4 + headerLen
+      // Read vectors (float32 LE, contiguous, after header + padding to 4-byte alignment)
+      const rawOffset = 4 + headerLen
+      const vectorOffset = rawOffset + (4 - rawOffset % 4) % 4
       const vectorBytes = buffer.byteLength - vectorOffset
       indexVectors = new Float32Array(buffer, vectorOffset, vectorBytes / 4)
       indexDims = indexHeader.dims
