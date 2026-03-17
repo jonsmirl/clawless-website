@@ -11,7 +11,7 @@ const SIMILARITY_THRESHOLD = 0.85;
 const CDN_BASE = "https://s3.lowpan.com";
 
 const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "https://clawless.lowpan.com",
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "*",
   "Access-Control-Max-Age": "86400",
