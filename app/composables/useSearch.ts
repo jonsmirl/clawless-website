@@ -36,6 +36,7 @@ export function useSearch() {
   let indexHeader: IndexHeader | null = null
   let indexVectors: Float32Array | null = null
   let indexDims = 0
+  let currentHash = ''
 
   async function loadModel() {
     if (pipeline || modelLoading.value) return
@@ -62,6 +63,17 @@ export function useSearch() {
 
   async function loadIndex() {
     try {
+      // Check server for current index hash
+      const healthResp = await fetch(`${apiUrl}/health`)
+      if (healthResp.ok) {
+        const health = await healthResp.json()
+        if (health.index_hash === currentHash && indexLoaded.value) {
+          console.log('Index unchanged, using cached version')
+          return
+        }
+        currentHash = health.index_hash || ''
+      }
+
       console.log('Fetching binary index...')
       const resp = await fetch(`${apiUrl}/index`)
       if (!resp.ok) {
