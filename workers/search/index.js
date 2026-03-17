@@ -7,7 +7,7 @@
  * Returns: { match: true, id, query, score, url } or { match: false }
  */
 
-const SIMILARITY_THRESHOLD = 0.85;
+const SIMILARITY_THRESHOLD = 0.78;
 const CDN_BASE = "https://s3.lowpan.com";
 
 const CORS_HEADERS = {
@@ -52,7 +52,7 @@ export default {
 
       // Search Vectorize for nearest match
       const results = await env.VECTORIZE.query(queryVector, {
-        topK: 1,
+        topK: 3,
         returnMetadata: "all",
       });
 
@@ -73,9 +73,13 @@ export default {
         }
       }
 
-      // No match above threshold
+      // No match above threshold — return top candidates for debugging
+      const candidates = (results.matches || []).map(m => ({
+        query: m.metadata?.query || "",
+        score: m.score,
+      }));
       return Response.json(
-        { match: false, bestScore: results.matches?.[0]?.score || 0 },
+        { match: false, bestScore: candidates[0]?.score || 0, candidates },
         { headers: CORS_HEADERS }
       );
     }
