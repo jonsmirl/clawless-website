@@ -8,9 +8,19 @@ const TEMPLATE = `---
 name: my-skill
 description: Describe what this skill does
 services: []
+user_invocable: true
+model_invocable: true
+command_dispatch: model
+env: []
+fetch_allowlist: []
+required_tokens: []
+required_permissions: []
 ---
 
-Write your skill instructions here...
+Write your skill instructions here.
+
+Deterministic skills (API lookups, data transforms) compile to JS automatically.
+Skills needing summarization or reasoning are classified as LLM-assisted or LLM-required.
 `
 
 const emit = defineEmits<{
