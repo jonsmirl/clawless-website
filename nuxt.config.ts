@@ -29,8 +29,8 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiUrl: process.env.CLAWLESS_API_URL || 'https://api.cesproofs.com',
-      cdnUrl: process.env.CLAWLESS_CDN_URL || 'https://cdn.cesproofs.com',
+      apiUrl: process.env.CLAWLESS_API_URL || 'https://api.cesproofs.org',
+      cdnUrl: process.env.CLAWLESS_CDN_URL || 'https://cdn.cesproofs.org',
       searchUrl: process.env.CLAWLESS_SEARCH_URL || 'https://clawless-search.jonsmirl.workers.dev',
       googleClientId: process.env.CLAWLESS_GOOGLE_CLIENT_ID || '',
       githubClientId: process.env.CLAWLESS_GITHUB_CLIENT_ID || '',

@@ -21,7 +21,7 @@ const rejection = ref<{ rejected: boolean; candidates?: Array<{ query: string; s
 
 const config = useRuntimeConfig()
 const API_URL = config.public.apiUrl || 'http://localhost:8787'
-const CDN_URL = config.public.cdnUrl || 'https://cdn.cesproofs.com'
+const CDN_URL = config.public.cdnUrl || 'https://cdn.cesproofs.org'
 const { modelReady, modelLoading, indexSize, search, loadIndex } = useSearch()
 
 const currentEntry = computed(() => {
