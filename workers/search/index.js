@@ -12,7 +12,7 @@
 
 const SIMILARITY_THRESHOLD = 0.82;
 const GIBBERISH_THRESHOLD = 0.35;
-const CDN_BASE = "https://s3.lowpan.com";
+const CDN_BASE = "https://cdn.cesproofs.com";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
