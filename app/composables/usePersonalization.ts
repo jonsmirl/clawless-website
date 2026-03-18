@@ -104,13 +104,6 @@ export function usePersonalization() {
 
   // ─── Build full pagelet context ───────────────────────────────────────────
 
-  interface WalletData {
-    address: string
-    private_key: string
-    balance_usdc: number
-    spend_cap_usdc: number
-  }
-
   async function buildContext(
     query: string,
     params: Record<string, unknown>,
@@ -125,7 +118,6 @@ export function usePersonalization() {
 
     const locale = getLocale()
     const units = await getUnits()
-    const wallet = await getPreference<WalletData>('wallet')
 
     return {
       query,
@@ -137,9 +129,7 @@ export function usePersonalization() {
         online: navigator.onLine,
         platform: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
       },
-      wallet: wallet ? { address: wallet.address, balance_usdc: wallet.balance_usdc, spend_cap_usdc: wallet.spend_cap_usdc } : null,
       _fetchAllowlist: fetchAllowlist,
-      _wallet: wallet, // internal — includes signing key for x402
     }
   }
 

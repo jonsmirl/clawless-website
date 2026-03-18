@@ -14,16 +14,10 @@ const props = defineProps<{
 
 type RunState = 'idle' | 'authorizing' | 'needs-permission' | 'running' | 'done' | 'error'
 
-interface PaymentRecord {
-  amount: string
-  recipient: string
-}
-
 const state = ref<RunState>('idle')
 const output = ref('')
 const errorMsg = ref('')
 const authorizingProvider = ref('')
-const payments = ref<PaymentRecord[]>([])
 
 const { getAllTokens } = useAuth()
 const { buildContext, requestLocation } = usePersonalization()
@@ -44,7 +38,6 @@ async function checkAndRun() {
       state.value = 'needs-permission'
       return
     }
-    // Will be requested inside buildContext when needed
   }
 
   // ── Tokens: auto-open OAuth popup for each missing provider ──
@@ -57,7 +50,6 @@ async function checkAndRun() {
 
     const token = await connectProvider(provider as 'google' | 'github' | 'microsoft')
     if (!token) {
-      // User cancelled — surface an error rather than silently failing
       state.value = 'error'
       errorMsg.value = `Login cancelled for ${provider}. This result requires a ${provider} account.`
       return
@@ -71,7 +63,6 @@ async function runScript() {
   if (!props.entry.script) return
   state.value = 'running'
   authorizingProvider.value = ''
-  payments.value = []
 
   try {
     const tokens = await getAllTokens()
@@ -95,14 +86,6 @@ async function runScript() {
       }, 15000)
 
       worker.onmessage = (e) => {
-        if (e.data?.type === 'payment') {
-          // Collect payment events while script is still running
-          payments.value = [...payments.value, {
-            amount: e.data.amount,
-            recipient: e.data.recipient,
-          }]
-          return
-        }
         clearTimeout(timeout)
         worker.terminate()
         if (e.data?.type === 'result') resolve(e.data.html)
@@ -145,7 +128,6 @@ watch(() => props.entry.script, () => {
     state.value = 'idle'
     output.value = ''
     errorMsg.value = ''
-    payments.value = []
     checkAndRun()
   }
 })
@@ -182,14 +164,6 @@ const outputIsHtml = computed(() => output.value.trimStart().startsWith('<'))
       class="pagelet-output pagelet-output--text"
     >
       {{ output }}
-    </div>
-
-    <!-- Payment log (shown after output when payments occurred) -->
-    <div v-if="state === 'done' && payments.length > 0" class="pagelet-payments">
-      <div v-for="(p, i) in payments" :key="i" class="pagelet-payment">
-        <span class="pagelet-payment-check">&#10003;</span>
-        <span class="pagelet-payment-text">Paid ${{ p.amount }} to {{ p.recipient }}</span>
-      </div>
     </div>
 
     <!-- Geolocation denied (can't auto-fix, needs user action in browser) -->
@@ -338,30 +312,5 @@ const outputIsHtml = computed(() => output.value.trimStart().startsWith('<'))
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
   word-break: break-word;
-}
-
-.pagelet-payments {
-  margin-top: var(--sp-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-}
-
-.pagelet-payment {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  font-size: var(--fs-xs);
-  color: var(--c-drift);
-}
-
-.pagelet-payment-check {
-  color: var(--c-glow);
-  font-size: var(--fs-xs);
-  flex-shrink: 0;
-}
-
-.pagelet-payment-text {
-  font-family: var(--font-mono);
 }
 </style>
