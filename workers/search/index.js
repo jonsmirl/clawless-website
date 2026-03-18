@@ -1,13 +1,17 @@
 /**
  * Clawless Search Worker
  *
- * Embeds a query via Workers AI (bge-small-en-v1.5, 384 dims)
+ * Embeds a query via Workers AI (bge-base-en-v1.5, 768 dims)
  * and searches Vectorize for the nearest cached entry.
  *
- * Returns: { match: true, id, query, score, url } or { match: false }
+ * Two-threshold system against 13M dense index (ORCAS + Wikipedia):
+ *   ≥ 0.82  → Strong match: serve from cache
+ *   0.35–0.82 → Recognizable: allow /miss (generate on demand)
+ *   < 0.35  → Gibberish: reject at edge (no server cost)
  */
 
 const SIMILARITY_THRESHOLD = 0.82;
+const GIBBERISH_THRESHOLD = 0.35;
 const CDN_BASE = "https://s3.lowpan.com";
 
 const CORS_HEADERS = {
@@ -35,10 +39,11 @@ export default {
     }
 
     try {
-      // Embed the query via Workers AI
+      // Embed the query via Workers AI (routed through AI Gateway for caching + rate limiting)
       const embeddingResponse = await env.AI.run(
         "@cf/baai/bge-base-en-v1.5",
-        { text: [query.trim()] }
+        { text: [query.trim()] },
+        { gateway: { id: "default" } }
       );
 
       const queryVector = embeddingResponse.data[0];
@@ -56,32 +61,57 @@ export default {
         returnMetadata: "all",
       });
 
-      if (results.matches && results.matches.length > 0) {
-        const best = results.matches[0];
+      const best = results.matches?.[0];
+      const bestScore = best?.score || 0;
 
-        if (best.score >= SIMILARITY_THRESHOLD) {
-          const hasArticle = best.metadata?.has_article === true;
-          return Response.json(
-            {
-              match: true,
-              has_article: hasArticle,
-              id: best.id,
-              query: best.metadata?.query || "",
-              score: best.score,
-              url: hasArticle ? `${CDN_BASE}/cache/${best.id}.json` : null,
-            },
-            { headers: CORS_HEADERS }
-          );
-        }
+      // Gibberish: nothing in 13M entries is similar
+      if (bestScore < GIBBERISH_THRESHOLD) {
+        const candidates = (results.matches || []).map(m => ({
+          query: m.metadata?.query || "",
+          score: m.score,
+        }));
+        return Response.json(
+          {
+            match: false,
+            rejected: true,
+            reason: "gibberish",
+            bestScore,
+            candidates,
+          },
+          { headers: CORS_HEADERS }
+        );
       }
 
-      // No match above threshold — return top candidates for debugging
+      // Strong match: serve from cache
+      if (bestScore >= SIMILARITY_THRESHOLD) {
+        const hasArticle = best.metadata?.has_article === true;
+        return Response.json(
+          {
+            match: true,
+            has_article: hasArticle,
+            id: best.id,
+            query: best.metadata?.query || "",
+            score: bestScore,
+            url: hasArticle ? `${CDN_BASE}/cache/${best.id}.json` : null,
+          },
+          { headers: CORS_HEADERS }
+        );
+      }
+
+      // Recognizable (0.35–0.82): known in index but no strong cache hit
+      // Allow /miss to generate on demand
       const candidates = (results.matches || []).map(m => ({
         query: m.metadata?.query || "",
         score: m.score,
       }));
       return Response.json(
-        { match: false, bestScore: candidates[0]?.score || 0, candidates },
+        {
+          match: false,
+          recognizable: true,
+          nearest_query: best.metadata?.query || "",
+          bestScore,
+          candidates,
+        },
         { headers: CORS_HEADERS }
       );
     }

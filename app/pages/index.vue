@@ -5,6 +5,9 @@ interface Entry {
   markdown?: string | null
   script?: string | null
   nano_prompt?: string | null
+  required_permissions?: string[]
+  required_tokens?: string[]
+  fetch_allowlist?: string[]
   follow_ups?: string[]
   timestamp?: string
 }
@@ -14,6 +17,7 @@ const currentIndex = ref(-1) // -1 = hero/empty state
 const loading = ref(false)
 const lastSource = ref<'cache' | 'miss' | ''>('')
 const resultView = ref<HTMLElement | null>(null)
+const rejection = ref<{ rejected: boolean; candidates?: Array<{ query: string; score: number }> } | null>(null)
 
 const config = useRuntimeConfig()
 const API_URL = config.public.apiUrl || 'http://localhost:8787'
@@ -25,17 +29,28 @@ const currentEntry = computed(() => {
   return history.value[currentIndex.value]
 })
 
-const showHero = computed(() => currentIndex.value < 0 && !loading.value)
+const showHero = computed(() => currentIndex.value < 0 && !loading.value && !rejection.value)
 
 async function handleQuery(query: string) {
   loading.value = true
   lastSource.value = ''
+  rejection.value = null
 
   try {
     const match = await search(query)
     let entry: Entry
 
-    if (match && match.has_article && match.url) {
+    // Gibberish rejection from Worker
+    if (match && match.rejected) {
+      rejection.value = {
+        rejected: true,
+        candidates: match.candidates,
+      }
+      loading.value = false
+      return
+    }
+
+    if (match && match.match && match.has_article && match.url) {
       // Index hit WITH article — fetch from R2 CDN (instant)
       const resp = await fetch(match.url)
       if (resp.ok) {
@@ -49,14 +64,13 @@ async function handleQuery(query: string) {
         lastSource.value = 'miss'
       }
     }
-    else if (match && !match.has_article) {
+    else if (match && match.match && !match.has_article) {
       // Index hit WITHOUT article — query is known but no page yet
-      // Generate on demand, will be cached for next time
       entry = await callMiss(query)
       lastSource.value = 'miss'
     }
     else {
-      // Not in index at all — generate AND it gets added to index
+      // Recognizable or no match — generate via /miss
       entry = await callMiss(query)
       lastSource.value = 'miss'
     }
@@ -76,12 +90,16 @@ async function handleQuery(query: string) {
     await nextTick()
     resultView.value?.scrollTo(0, 0)
   }
-  catch (err) {
+  catch (err: any) {
     console.error('Query failed:', err)
+    // Check if it was a server 422 (rejected by server)
+    const is422 = err?.message?.includes('422')
     history.value.push({
       id: crypto.randomUUID(),
       query,
-      markdown: '**Error**: Could not generate a response. Please try again.',
+      markdown: is422
+        ? '**Could not process this query.** Try rephrasing or searching for something else.'
+        : '**Error**: Could not generate a response. Please try again.',
       follow_ups: [],
     })
     currentIndex.value = history.value.length - 1
@@ -148,6 +166,24 @@ if (import.meta.client) {
       <p v-else class="hero-status">
         <span class="status-dot status-dot--off" /> Search unavailable
       </p>
+    </div>
+
+    <!-- Gibberish rejection -->
+    <div v-else-if="rejection" class="result-view">
+      <div class="rejection">
+        <p class="rejection-msg">This doesn't look like a search query.</p>
+        <div v-if="rejection.candidates?.length" class="rejection-suggestions">
+          <p class="rejection-hint">Did you mean:</p>
+          <button
+            v-for="c in rejection.candidates"
+            :key="c.query"
+            class="suggestion-chip"
+            @click="rejection = null; handleQuery(c.query)"
+          >
+            {{ c.query }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Single result view -->
@@ -300,6 +336,50 @@ if (import.meta.client) {
 
 .skeleton-bar--medium {
   width: 70%;
+}
+
+/* ─── Rejection state ─── */
+.rejection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-8) 0;
+  text-align: center;
+}
+
+.rejection-msg {
+  font-size: var(--fs-lg);
+  color: var(--c-drift);
+}
+
+.rejection-suggestions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.rejection-hint {
+  font-size: var(--fs-sm);
+  color: var(--c-shelf);
+  margin-bottom: var(--sp-1);
+}
+
+.suggestion-chip {
+  background: var(--c-trench);
+  color: var(--c-foam);
+  border: 1px solid var(--c-shelf);
+  border-radius: var(--radius-md);
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.suggestion-chip:hover {
+  background: var(--c-deep);
+  border-color: var(--c-glow);
 }
 
 /* ─── Prompt area ─── */

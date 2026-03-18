@@ -5,6 +5,11 @@ const props = defineProps<{
   entry: {
     query: string
     markdown?: string | null
+    script?: string | null
+    nano_prompt?: string | null
+    required_permissions?: string[]
+    required_tokens?: string[]
+    fetch_allowlist?: string[]
     follow_ups?: string[]
   }
 }>()
@@ -30,6 +35,8 @@ const renderedHtml = computed(() => {
       class="entry-content"
       v-html="renderedHtml"
     />
+    <PageletRunner v-if="entry.script" :entry="entry" :query="entry.query" />
+
     <div v-if="entry.follow_ups?.length" class="entry-followups">
       <button
         v-for="followUp in entry.follow_ups"

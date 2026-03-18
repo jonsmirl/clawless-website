@@ -1,5 +1,55 @@
 <script setup lang="ts">
-const showSignIn = ref(false)
+const client = useSupabaseClient()
+const user = useSupabaseUser()
+
+const showMenu = ref(false)
+const signingIn = ref(false)
+
+async function signInWith(provider: 'google' | 'github') {
+  signingIn.value = true
+  showMenu.value = false
+  const { error } = await client.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: `${window.location.origin}/auth/confirm`,
+    },
+  })
+  if (error) {
+    console.error('OAuth error:', error.message)
+    signingIn.value = false
+  }
+}
+
+async function signOut() {
+  showMenu.value = false
+  await client.auth.signOut()
+}
+
+function toggleMenu() {
+  showMenu.value = !showMenu.value
+}
+
+// Close menu on click outside
+function onClickOutside(e: Event) {
+  const target = e.target as HTMLElement
+  if (!target.closest('.nav-auth')) {
+    showMenu.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', onClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', onClickOutside)
+})
+
+const userEmail = computed(() => user.value?.email || '')
+const userInitial = computed(() => {
+  const name = user.value?.user_metadata?.full_name || user.value?.email || '?'
+  return name.charAt(0).toUpperCase()
+})
 </script>
 
 <template>
@@ -12,9 +62,47 @@ const showSignIn = ref(false)
 
       <nav class="nav-links">
         <a href="/community" class="nav-link">Community</a>
-        <button class="nav-signin" @click="showSignIn = !showSignIn">
-          Sign in
-        </button>
+        <NuxtLink to="/skills" class="nav-link">Skills</NuxtLink>
+        <NuxtLink to="/services" class="nav-link">Services</NuxtLink>
+        <NuxtLink to="/settings" class="nav-link">Settings</NuxtLink>
+
+        <div class="nav-auth">
+          <!-- Signed out -->
+          <template v-if="!user">
+            <button
+              class="nav-signin"
+              :disabled="signingIn"
+              @click.stop="toggleMenu"
+            >
+              {{ signingIn ? 'Signing in...' : 'Sign in' }}
+            </button>
+            <div v-if="showMenu" class="auth-dropdown">
+              <button class="auth-option" @click="signInWith('google')">
+                <span class="auth-icon">G</span>
+                Continue with Google
+              </button>
+              <button class="auth-option" @click="signInWith('github')">
+                <span class="auth-icon">GH</span>
+                Continue with GitHub
+              </button>
+            </div>
+          </template>
+
+          <!-- Signed in -->
+          <template v-else>
+            <button class="nav-avatar" @click.stop="toggleMenu">
+              {{ userInitial }}
+            </button>
+            <div v-if="showMenu" class="auth-dropdown">
+              <div class="auth-user">
+                {{ userEmail }}
+              </div>
+              <button class="auth-option auth-option--signout" @click="signOut">
+                Sign out
+              </button>
+            </div>
+          </template>
+        </div>
       </nav>
     </div>
   </header>
@@ -93,6 +181,10 @@ const showSignIn = ref(false)
   color: var(--c-foam);
 }
 
+.nav-auth {
+  position: relative;
+}
+
 .nav-signin {
   font-family: var(--font-body);
   font-size: var(--fs-sm);
@@ -106,9 +198,105 @@ const showSignIn = ref(false)
   transition: all var(--dur-fast) var(--ease-out);
 }
 
-.nav-signin:hover {
+.nav-signin:hover:not(:disabled) {
   background: var(--c-glow-bright);
   transform: translateY(-1px);
   box-shadow: var(--shadow-glow);
+}
+
+.nav-signin:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.nav-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--c-glow);
+  color: var(--c-abyss);
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+
+.nav-avatar:hover {
+  background: var(--c-glow-bright);
+  box-shadow: var(--shadow-glow);
+}
+
+.auth-dropdown {
+  position: absolute;
+  top: calc(100% + var(--sp-2));
+  right: 0;
+  min-width: 220px;
+  background: var(--c-deep);
+  border: 1px solid var(--c-trench);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  animation: fadeInUp var(--dur-fast) var(--ease-out) both;
+  z-index: 200;
+}
+
+.auth-user {
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+  color: var(--c-drift);
+  border-bottom: 1px solid var(--c-trench);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.auth-option {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--c-foam);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.auth-option:hover {
+  background: var(--c-trench);
+}
+
+.auth-option--signout {
+  color: var(--c-drift);
+  border-top: 1px solid var(--c-trench);
+}
+
+.auth-option--signout:hover {
+  color: var(--c-error);
+}
+
+.auth-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--c-crest);
+  background: var(--c-shelf);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
 }
 </style>
